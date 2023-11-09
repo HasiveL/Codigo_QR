@@ -1,0 +1,60 @@
+import cv2
+import numpy as np
+import sqlite3
+from twilio.rest import Client
+from pyzbar.pyzbar import decode
+
+def verificacion(data):
+    try:
+        conn = sqlite3.connect("proyecto_qr.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT EXISTS (SELECT 1 FROM qr_data WHERE contenido = ?)", (data,)
+        )
+        resultado = cursor.fetchone()[0]
+        return resultado == 1
+    except sqlite3.Error as e:
+        print("Error en BD:", e)
+    finally:
+        conn.close()
+
+def whatsapp(mensaje):
+    account_sid = "AC7fa5fe442b77a4a1fcbd809b02e8a984"  
+    auth_token = "d6f773ac75a6daf0fed4a731ca2e81af"  
+    client = Client(account_sid, auth_token)
+    mensaje = client.messages.create(
+        body=mensaje,
+        from_="whatsapp:+14155238886",  
+        to="whatsapp:+5215627375732",  
+    )
+
+def main():
+    cap = cv2.VideoCapture(0)
+
+    while True:
+        ret, frame = cap.read()
+        if ret:
+            cod_read = decode(frame)
+            for cod_read in cod_read:
+                info = cod_read.data.decode("utf-8")
+                if verificacion(info):
+                    mensaje = "la informacion es: " + info
+                    whatsapp(mensaje)
+                    break
+            for codigo in cod_read:
+                points = codigo.polygon
+                if len(points) > 4:
+                    cuadro = cv2.convexHull(
+                        np.array([point for point in points], dtype=np.int32)
+                    )
+                    cv2.polylines(frame, [cuadro], True, (0, 255, 0), 2)
+
+            cv2.imshow("Data QR", frame)
+
+            if cv2.waitKey(1) & 0xFF == ord("q"):  
+                break
+    cap.release()
+    cv2.destroyAllWindows()
+    
+if __name__ == "__main__":
+    main()

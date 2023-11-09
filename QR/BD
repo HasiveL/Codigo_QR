@@ -1,0 +1,60 @@
+import sqlite3
+import qrcode
+from pyzbar.pyzbar import decode
+
+def generar_qr(datos, nombre_archivo):
+    qr = qrcode.QRCode(
+        version=1,
+        box_size=15,
+        border=2,
+    )
+    qr.add_data(datos)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    img.save(nombre_archivo)
+
+personalizacion = "Ingreso Mario a las 11:46 hrs"
+archivo_name = "QR_PRUEBA._PROYECTO.png"
+generar_qr(personalizacion, archivo_name)
+
+def database():
+    conn = sqlite3.connect("proyecto_qr.db")
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS qr_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            contenido TEXT
+        )
+    """
+    )
+    conn.commit()
+    conn.close()
+
+def almacenar_qr(data):
+    conn = sqlite3.connect("proyecto_qr.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO qr_data (contenido) VALUES (?)", (data,))
+    conn.commit()
+    conn.close()
+
+def verificacion(data):
+    try:
+        conn = sqlite3.connect("proyecto_qr.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT EXISTS (SELECT 1 FROM qr_data WHERE contenido = ?)", (data,)
+        )
+        resultado = cursor.fetchone()[0]
+        return resultado == 1
+    except sqlite3.Error as e:
+        print("Error en BD:", e)
+    finally:
+        conn.close()  
+
+data = "tu_dato_a_verificar"
+existe = verificacion(data)
+print("El registro existe:", existe)
+
+database()
+almacenar_qr(personalizacion)
